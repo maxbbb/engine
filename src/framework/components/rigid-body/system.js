@@ -163,7 +163,8 @@ Object.assign(pc, function () {
         this.maxSubSteps = 10;
         this.fixedTimeStep = 1 / 60;
         this.gravity = new pc.Vec3(0, -9.81, 0);
-
+        this.simulationSteps = 0;
+        this.simulationEnabled = false;
         // Arrays of pc.RigidBodyComponents filtered on body type
         this._dynamic = [];
         this._kinematic = [];
@@ -532,6 +533,7 @@ Object.assign(pc, function () {
          * @returns {void}
          */
         _checkForCollisions: function (dynamicsWorld, timeStep) {
+            this.simulationSteps++;
             // Check for collisions and fire callbacks
             var dispatcher = this.dynamicsWorld.getDispatcher();
             var numManifolds = dispatcher.getNumManifolds();
@@ -539,7 +541,7 @@ Object.assign(pc, function () {
             frameCollisions = {};
 
             // loop through the all contacts and fire events
-            for (i = 0; i < numManifolds; i++) {
+            for (var i = 0; i < numManifolds; i++) {
                 var manifold = dispatcher.getManifoldByIndexInternal(i);
 
                 var body0 = manifold.getBody0();
@@ -615,7 +617,7 @@ Object.assign(pc, function () {
                         var globalEvents = this.hasEvent("contact");
 
                         if (globalEvents || e0Events || e1Events) {
-                            for (j = 0; j < numContacts; j++) {
+                            for (var j = 0; j < numContacts; j++) {
                                 var btContactPoint = manifold.getContactPoint(j);
 
                                 var contactPoint = this._createContactPointFromAmmo(btContactPoint);
@@ -685,6 +687,7 @@ Object.assign(pc, function () {
         },
 
         onUpdate: function (dt) {
+            if (!this.simulationEnabled) return;
             // #ifdef PROFILER
             this._stats.physicsStart = pc.now();
             // #endif
@@ -713,8 +716,8 @@ Object.assign(pc, function () {
 
             // Update the transforms of all entities referencing a dynamic body
             var dynamic = this._dynamic;
-            for (i = 0, len = dynamic.length; i < len; i++) {
-                dynamic[i]._updateDynamic();
+            for (j = 0, len = dynamic.length; j < len; j++) {
+                dynamic[j]._updateDynamic();
             }
 
             if (!this.dynamicsWorld.setInternalTickCallback)
