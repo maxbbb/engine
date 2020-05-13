@@ -164,6 +164,10 @@ Object.assign(pc, function () {
         this.fixedTimeStep = 1 / 60;
         this.gravity = new pc.Vec3(0, -9.81, 0);
 
+        // Arrays of pc.RigidBodyComponents filtered on body type
+        this._dynamic = [];
+        this._kinematic = [];
+
         this.on('remove', this.onRemove, this);
     };
     RigidBodyComponentSystem.prototype = Object.create(pc.ComponentSystem.prototype);
@@ -265,21 +269,10 @@ Object.assign(pc, function () {
             } else {
                 this.dynamicsWorld.addRigidBody(body);
             }
-
-            return body;
         },
 
         removeBody: function (body) {
             this.dynamicsWorld.removeRigidBody(body);
-        },
-
-        addConstraint: function (constraint) {
-            this.dynamicsWorld.addConstraint(constraint);
-            return constraint;
-        },
-
-        removeConstraint: function (constraint) {
-            this.dynamicsWorld.removeConstraint(constraint);
         },
 
         /**
@@ -542,7 +535,6 @@ Object.assign(pc, function () {
             // Check for collisions and fire callbacks
             var dispatcher = this.dynamicsWorld.getDispatcher();
             var numManifolds = dispatcher.getNumManifolds();
-            var i, j;
 
             frameCollisions = {};
 
@@ -697,6 +689,12 @@ Object.assign(pc, function () {
             this._stats.physicsStart = pc.now();
             // #endif
 
+            var i, j, len;
+
+            // #ifdef PROFILER
+            this._stats.physicsStart = pc.now();
+            // #endif
+
             // Check to see whether we need to update gravity on the dynamics world
             var gravity = this.dynamicsWorld.getGravity();
             if (gravity.x() !== this.gravity.x || gravity.y() !== this.gravity.y || gravity.z() !== this.gravity.z) {
@@ -704,24 +702,19 @@ Object.assign(pc, function () {
                 this.dynamicsWorld.setGravity(gravity);
             }
 
-            // Update the transforms of all bodies
+            // Update all kinematic bodies based on their current entity transform
+            var kinematic = this._kinematic;
+            for (i = 0, len = kinematic.length; i < len; i++) {
+                kinematic[i]._updateKinematic();
+            }
+
+            // Step the physics simulation
             this.dynamicsWorld.stepSimulation(dt, this.maxSubSteps, this.fixedTimeStep);
 
-            // Update the transforms of all entities referencing a body
-            var components = this.store;
-            for (var id in components) {
-                if (components.hasOwnProperty(id)) {
-                    var entity = components[id].entity;
-                    var componentData = components[id].data;
-                    if (componentData.body && componentData.body.isActive() && componentData.enabled && entity.enabled) {
-                        if (componentData.type === pc.BODYTYPE_DYNAMIC) {
-                            entity.rigidbody.syncBodyToEntity();
-                        } else if (componentData.type === pc.BODYTYPE_KINEMATIC) {
-                            entity.rigidbody._updateKinematic(dt);
-                        }
-                    }
-
-                }
+            // Update the transforms of all entities referencing a dynamic body
+            var dynamic = this._dynamic;
+            for (i = 0, len = dynamic.length; i < len; i++) {
+                dynamic[i]._updateDynamic();
             }
 
             if (!this.dynamicsWorld.setInternalTickCallback)
@@ -734,19 +727,6 @@ Object.assign(pc, function () {
     });
 
     return {
-        // DEPRECATED ENUMS - see rigidbody_constants.js
-        RIGIDBODY_TYPE_STATIC: 'static',
-        RIGIDBODY_TYPE_DYNAMIC: 'dynamic',
-        RIGIDBODY_TYPE_KINEMATIC: 'kinematic',
-        RIGIDBODY_CF_STATIC_OBJECT: 1,
-        RIGIDBODY_CF_KINEMATIC_OBJECT: 2,
-        RIGIDBODY_CF_NORESPONSE_OBJECT: 4,
-        RIGIDBODY_ACTIVE_TAG: 1,
-        RIGIDBODY_ISLAND_SLEEPING: 2,
-        RIGIDBODY_WANTS_DEACTIVATION: 3,
-        RIGIDBODY_DISABLE_DEACTIVATION: 4,
-        RIGIDBODY_DISABLE_SIMULATION: 5,
-
         RigidBodyComponentSystem: RigidBodyComponentSystem
     };
 }());
