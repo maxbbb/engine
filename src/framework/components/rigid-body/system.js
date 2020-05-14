@@ -530,12 +530,11 @@ Object.assign(pc, function () {
          * @function
          * @name pc.RigidBodyComponentSystem#_checkForCollisions
          * @description Checks for collisions and fires collision events
-         * @param {pc.Entity} dynamicsWorld - The pointer to the dynamics world that invoked this callback.
-         * @param {pc.Entity} timeStep - The amount of simulation time processed in the last simulation tick.
+         * @param {object | number} dynamicsWorld - Either The integer pointer to the dynamics world that invoked this callback or the underlying world.
+         * @param {number} timeStep - The amount of simulation time processed in the last simulation tick.
          * @returns {void}
          */
         _checkForCollisions: function (dynamicsWorld, timeStep) {
-            this.simulationSteps++;
             // Check for collisions and fire callbacks
             var dispatcher = this.dynamicsWorld.getDispatcher();
             var numManifolds = dispatcher.getNumManifolds();
@@ -690,11 +689,7 @@ Object.assign(pc, function () {
 
         onUpdate: function (dt) {
             if (!this.simulationEnabled) return;
-            // #ifdef PROFILER
-            this._stats.physicsStart = pc.now();
-            // #endif
-
-            var i, j, len;
+            var i, len;
 
             // #ifdef PROFILER
             this._stats.physicsStart = pc.now();
@@ -718,12 +713,12 @@ Object.assign(pc, function () {
 
             // Update the transforms of all entities referencing a dynamic body
             var dynamic = this._dynamic;
-            for (j = 0, len = dynamic.length; j < len; j++) {
-                dynamic[j]._updateDynamic();
+            for (i = 0, len = dynamic.length; i < len; i++) {
+                dynamic[i]._updateDynamic();
             }
 
             if (!this.dynamicsWorld.setInternalTickCallback)
-                this._checkForCollisions();
+                this._checkForCollisions(this.dynamicsWorld, dt);
 
             // #ifdef PROFILER
             this._stats.physicsTime = pc.now() - this._stats.physicsStart;
